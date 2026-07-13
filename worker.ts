@@ -170,21 +170,21 @@ export default {
         );
       }
 
-      const slug = body.slug || body.title?.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || `import-${Date.now()}`;
-      const r2Key = `music/${slug}.opus`;
+      // Tentative slug — will be refined after container returns metadata
+      const tentativeSlug = body.slug || `import-${Date.now()}`;
 
-      console.log(`[import] Starting: ${body.url} → ${r2Key}`);
+      console.log(`[import] Starting: ${body.url}`);
 
       try {
         // Spawn container — downloads on CF network, encodes, returns Opus stream
-        const container = getContainer(env.YTDL_CONTAINER, slug);
+        const container = getContainer(env.YTDL_CONTAINER, tentativeSlug);
         const containerResp = await container.fetch("http://container/import", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             url: body.url,
-            title: body.title || slug,
-            artist: body.artist || "Unknown",
+            title: body.title || "",
+            artist: body.artist || "",
             album: body.album || "",
           }),
         });
@@ -198,8 +198,6 @@ export default {
           );
         }
 
-        // Upload Opus stream directly to R2
-        const duration = parseFloat(containerResp.headers.get("X-Audio-Duration") || "0");
         const opusBody = containerResp.body;
         if (!opusBody) {
           return new Response(
@@ -207,6 +205,16 @@ export default {
             { status: 502, headers: { "Content-Type": "application/json", ...cors } }
           );
         }
+
+        const duration = parseFloat(containerResp.headers.get("X-Audio-Duration") || "0");
+        const detectedTitle = containerResp.headers.get("X-Audio-Title") || "";
+        const detectedArtist = containerResp.headers.get("X-Audio-Artist") || "";
+
+        // Slug from detected title, or user-provided, or fallback
+        const slug = body.slug
+          || (detectedTitle || body.title || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+          || tentativeSlug;
+        const r2Key = `music/${slug}.opus`;
 
         await env.AUDIO_BUCKET.put(r2Key, opusBody, {
           httpMetadata: {
@@ -222,6 +230,8 @@ export default {
             ok: true,
             slug,
             key: r2Key,
+            title: detectedTitle || body.title || slug,
+            artist: detectedArtist || body.artist || "",
             duration: Math.round(duration),
             streamUrl: `/stream/${slug}`,
           }),

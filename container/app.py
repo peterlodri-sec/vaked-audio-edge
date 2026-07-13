@@ -33,13 +33,31 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
 
         url = data.get("url", "")
-        title = data.get("title", "Unknown")
-        artist = data.get("artist", "Unknown")
+        title = data.get("title", "")
+        artist = data.get("artist", "")
         album = data.get("album", "")
 
         if not url:
             self.send_error(400, "Missing url")
             return
+
+        # Step 0: Auto-extract YouTube metadata if not provided
+        if not title or not artist:
+            print(f"[yt-dlp] Extracting metadata from: {url}", file=sys.stderr)
+            rc, out, _ = run(
+                ["yt-dlp", "--print", "%(title)s|||%(uploader)s", "--no-playlist", "--no-progress", url],
+                timeout=30,
+            )
+            if rc == 0 and out.strip():
+                parts = out.strip().split("|||", 1)
+                if not title:
+                    title = parts[0].strip()
+                if len(parts) > 1 and not artist:
+                    artist = parts[1].strip()
+                print(f"[yt-dlp] Title: {title}, Artist: {artist}", file=sys.stderr)
+
+        title = title or "YouTube Import"
+        artist = artist or "Unknown"
 
         workdir = tempfile.mkdtemp(prefix="ytdl-")
         try:

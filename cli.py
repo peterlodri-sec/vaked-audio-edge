@@ -178,14 +178,9 @@ def _stream_via_ffmpeg_afplay(url: str):
 
 
 def cmd_import(url: str, title: str = "", artist: str = "", album: str = ""):
-    if not title:
-        title = input("Title: ").strip()
-    if not artist:
-        artist = input("Artist: ").strip()
-
-    print(f"\n⬇ Importing: {title}")
-    print(f"  URL: {url}")
-    print("  This runs entirely on Cloudflare — no bandwidth from your machine.")
+    print(f"\n⬇ Importing: {url}")
+    print("  Metadata auto-detected from YouTube (title, artist).")
+    print("  Runs entirely on Cloudflare — no bandwidth from your machine.")
     print("  (may take 1-3 minutes for long videos)\n")
 
     t0 = time.time()
@@ -197,6 +192,7 @@ def cmd_import(url: str, title: str = "", artist: str = "", album: str = ""):
         )
         elapsed = time.time() - t0
         print(f"  Done in {elapsed:.0f}s")
+        print(f"  Title:    {result.get('title', '?')}")
         print(f"  Slug:     {result.get('slug')}")
         print(f"  Duration: {fmt_duration(result.get('duration', 0))}")
         print(f"  Stream:   {HOST}/stream/{result.get('slug')}")

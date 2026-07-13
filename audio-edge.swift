@@ -193,58 +193,35 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func importDialog() {
         let alert = NSAlert()
         alert.messageText = "Import from YouTube"
-        alert.informativeText = "Enter the video URL. This runs on Cloudflare — no bandwidth from your machine."
+        alert.informativeText = "Paste a YouTube URL. Metadata auto-detected. Runs on Cloudflare."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "Import")
         alert.addButton(withTitle: "Cancel")
 
-        let stack = NSStackView(frame: NSRect(x: 0, y: 0, width: 320, height: 90))
-        stack.orientation = .vertical
-        stack.spacing = 6
+        let urlField = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
+        urlField.placeholderString = "https://youtube.com/watch?v=..."
 
-        let urlField = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 22))
-        urlField.placeholderString = "YouTube URL"
-        stack.addArrangedSubview(urlField)
-
-        let titleField = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 22))
-        titleField.placeholderString = "Title"
-        stack.addArrangedSubview(titleField)
-
-        let artistField = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 22))
-        artistField.placeholderString = "Artist"
-        stack.addArrangedSubview(artistField)
-
-        // Read clipboard for URL if it looks like YouTube
         if let clip = NSPasteboard.general.string(forType: .string), clip.contains("youtu") {
             urlField.stringValue = clip
         }
 
-        alert.accessoryView = stack
+        alert.accessoryView = urlField
 
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         let ytUrl = urlField.stringValue.trimmingCharacters(in: .whitespaces)
-        let title = titleField.stringValue.trimmingCharacters(in: .whitespaces)
-        let artist = artistField.stringValue.trimmingCharacters(in: .whitespaces)
-
         guard !ytUrl.isEmpty else { return }
 
         statusItem.button?.title = "⬇"
-        performImport(url: ytUrl, title: title, artist: artist)
+        performImport(url: ytUrl)
     }
 
-    func performImport(url ytUrl: String, title: String, artist: String) {
+    func performImport(url ytUrl: String) {
         guard let endpoint = URL(string: "\(HOST)/import") else { return }
         var req = URLRequest(url: endpoint)
         req.httpMethod = "POST"
-        req.timeoutInterval = 180  // cold container start can take 30s+
+        req.timeoutInterval = 180
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        let body: [String: String] = [
-            "url": ytUrl,
-            "title": title.isEmpty ? "YouTube Import" : title,
-            "artist": artist.isEmpty ? "Unknown" : artist,
-        ]
-        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["url": ytUrl])
 
         URLSession.shared.dataTask(with: req) { [weak self] data, resp, error in
             DispatchQueue.main.async {
