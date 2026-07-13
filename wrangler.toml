@@ -1,0 +1,32 @@
+name = "vaked-audio-edge"
+main = "worker.ts"
+compatibility_date = "2025-07-01"
+
+[[r2_buckets]]
+binding = "AUDIO_BUCKET"
+bucket_name = "vaked-audio"
+
+# yt-dlp Container — YouTube → Opus on CF infrastructure
+[[containers]]
+class_name = "YTDLContainer"
+image = "./container/Dockerfile"
+max_instances = 1
+
+[[durable_objects.bindings]]
+class_name = "YTDLContainer"
+name = "YTDL_CONTAINER"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["YTDLContainer"]
+
+[observability]
+enabled = true
+
+# Custom domain — set up in Cloudflare Dashboard after deploy:
+#   Workers & Pages > vaked-audio-edge > Triggers > Custom Domains > Add "audio.vaked.dev"
+# To find zone ID: Cloudflare Dashboard → vaked.dev → Overview → right sidebar
+# Then uncomment:
+# [[routes]]
+# pattern = "audio.vaked.dev/*"
+# zone_id = "YOUR_ZONE_ID"

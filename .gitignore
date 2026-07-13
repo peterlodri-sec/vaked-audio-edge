@@ -1,0 +1,8 @@
+node_modules/
+.wrangler/
+music/
+*.opus
+.venv/
+AudioEdge.app/
+package-lock.json
+uv.lock
