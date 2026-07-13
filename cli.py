@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # /// script
-# requires-python = ">=3.11"
+# requires-python = ">=3.12"
 # dependencies = ["requests"]
 # ///
 """
@@ -19,13 +19,15 @@ Env:
 """
 
 import argparse
-import json
 import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from urllib.parse import urljoin
+
+type Response = dict | bytes
 
 HOST = os.getenv("AUDIO_HOST", "https://audio.vaked.dev")
 
@@ -35,8 +37,9 @@ HOST = os.getenv("AUDIO_HOST", "https://audio.vaked.dev")
 # ---------------------------------------------------------------------------
 
 
-def req(path: str, method: str = "GET", **kwargs) -> dict | bytes:
+def req(path: str, method: str = "GET", **kwargs) -> Response:
     import requests
+
     url = urljoin(HOST, path)
     resp = requests.request(method, url, timeout=120, **kwargs)
     resp.raise_for_status()
@@ -49,16 +52,16 @@ def req(path: str, method: str = "GET", **kwargs) -> dict | bytes:
 def fmt_duration(sec: int) -> str:
     m, s = divmod(int(sec), 60)
     h, m = divmod(m, 60)
-    if h:
-        return f"{h}:{m:02d}:{s:02d}"
-    return f"{m}:{s:02d}"
+    match h:
+        case 0:
+            return f"{m}:{s:02d}"
+        case _:
+            return f"{h}:{m:02d}:{s:02d}"
 
 
 def find_player() -> str | None:
-    for player in ("mpv", "ffplay", "vlc", "afplay"):
-        if shutil.which(player):
-            return player
-    return None
+    players = ("mpv", "ffplay", "vlc", "afplay")
+    return next((p for p in players if shutil.which(p)), None)
 
 
 # ---------------------------------------------------------------------------
@@ -100,13 +103,13 @@ def cmd_play(slug: str | None = None):
         try:
             idx = int(input("\nPick a track number: "))
             slug = tracks[idx]["slug"]
-        except (ValueError, IndexError, KeyboardInterrupt):
+        except (ValueError, IndexError, KeyboardInterrupt, EOFError):
             print("Cancelled.")
             return
 
     stream_url = urljoin(HOST, f"/stream/{slug}")
     print(f"\n▶ Streaming: {slug}  (player: {player})")
-    print(f"  Press Ctrl+C to stop.\n")
+    print("  Press Ctrl+C to stop.\n")
 
     try:
         if player == "mpv":
@@ -115,8 +118,7 @@ def cmd_play(slug: str | None = None):
                 _stream_via_curl_mpv(stream_url)
             else:
                 subprocess.run(
-                    ["mpv", "--no-video", "--ytdl=no",
-                     "--user-agent=Mozilla/5.0", "--msg-level=all=warn", stream_url],
+                    ["mpv", "--no-video", "--ytdl=no", "--user-agent=Mozilla/5.0", "--msg-level=all=warn", stream_url],
                     check=False,
                 )
         elif player == "ffplay":
@@ -135,8 +137,14 @@ def _stream_via_ffplay(url: str):
     """ffplay audio-only mode."""
     subprocess.run(
         [
-            "ffplay", "-vn", "-nodisp", "-autoexit", "-loglevel", "quiet",
-            "-user_agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+            "ffplay",
+            "-vn",
+            "-nodisp",
+            "-autoexit",
+            "-loglevel",
+            "quiet",
+            "-user_agent",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
             url,
         ],
         check=False,
@@ -145,10 +153,9 @@ def _stream_via_ffplay(url: str):
 
 def _stream_via_curl_mpv(url: str):
     """curl → fifo → mpv. Avoids CF WAF + stdin format detection issues."""
-    import tempfile, os as _os
-    fifo = tempfile.mktemp(suffix=".opus")
-    _os.mkfifo(fifo)
-    try:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        fifo = os.path.join(tmpdir, "stream.opus")
+        os.mkfifo(fifo, 0o600)
         curl = subprocess.Popen(
             ["curl", "-sSL", "-H", "User-Agent: Mozilla/5.0", url, "-o", fifo],
         )
@@ -158,26 +165,21 @@ def _stream_via_curl_mpv(url: str):
         )
         curl.kill()
         curl.wait()
-    finally:
-        _os.unlink(fifo)
 
 
 def _stream_via_ffmpeg_afplay(url: str):
     """ffmpeg decoded → named pipe → afplay. Works on macOS."""
-    import tempfile, os as _os
-    fifo = tempfile.mktemp(suffix=".fifo")
-    _os.mkfifo(fifo)
-    try:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        fifo = os.path.join(tmpdir, "stream.fifo")
+        os.mkfifo(fifo, 0o600)
         ffmpeg = subprocess.Popen(
             ["ffmpeg", "-loglevel", "quiet", "-i", url, "-f", "au", fifo],
         )
         subprocess.run(["afplay", fifo], check=False)
         ffmpeg.wait()
-    finally:
-        _os.unlink(fifo)
 
 
-def cmd_import(url: str, title: str = "", artist: str = "", album: str = ""):
+def cmd_import(url: str, title: str | None = None, artist: str | None = None, album: str | None = None):
     print(f"\n⬇ Importing: {url}")
     print("  Metadata auto-detected from YouTube (title, artist).")
     print("  Runs entirely on Cloudflare — no bandwidth from your machine.")
@@ -185,10 +187,17 @@ def cmd_import(url: str, title: str = "", artist: str = "", album: str = ""):
 
     t0 = time.time()
     try:
+        payload = {"url": url}
+        if title:
+            payload["title"] = title
+        if artist:
+            payload["artist"] = artist
+        if album:
+            payload["album"] = album
         result = req(
             "/import",
             method="POST",
-            json={"url": url, "title": title, "artist": artist, "album": album},
+            json=payload,
         )
         elapsed = time.time() - t0
         print(f"  Done in {elapsed:.0f}s")

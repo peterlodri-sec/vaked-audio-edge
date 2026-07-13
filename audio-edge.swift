@@ -128,7 +128,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Clean up any old fifo
         let _ = try? FileManager.default.removeItem(atPath: fifo)
-        mkfifo(fifo, 0o644)
+        mkfifo(fifo, 0o600)
 
         // curl → fifo (background)
         curl = Process()
@@ -137,8 +137,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         curl?.launch()
 
         // mpv → play from fifo
+        let mpvPath = ProcessInfo.processInfo.environment["MPV_PATH"] ?? "/opt/homebrew/bin/mpv"
         player = Process()
-        player?.launchPath = "/opt/homebrew/bin/mpv"
+        player?.launchPath = mpvPath
         player?.arguments = ["--no-video", "--really-quiet", "--ytdl=no", fifo]
         player?.terminationHandler = { [weak self] _ in
             DispatchQueue.main.async {
