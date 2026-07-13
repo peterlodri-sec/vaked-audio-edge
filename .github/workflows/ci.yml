@@ -12,5 +12,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - run: uv run --with ruff ruff check cli.py
-      - run: uv run --with ruff ruff format --check cli.py
+      - run: uv run ruff check cli.py
+      - run: uv run ruff format --check cli.py
