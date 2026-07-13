@@ -1,17 +1,20 @@
 # Zoé MTV Unplugged Import Status
 
-## Completed ✅
+## Status
+
+**1/14 tracks imported** — CF Worker `/import` returning 502 Bad Gateway
+
+### Completed ✅
 
 1. **Soñé (MTV Unplugged)** — `https://audio.vaked.dev/stream/so-mtv-unplugged`
-   - Duration: 3:52
-   - Imported: 2026-07-13
-   - Zero local bandwidth used (processed via CF Container)
 
-## Remaining (13 tracks)
+### Remaining (13 tracks)
 
-Script created: `import-zoe-unplugged.sh`
+**Tools ready:**
+- `batch-import.py zoe-unplugged-tracks.txt` — easiest, retry logic built-in
+- `import-zoe-unplugged.sh` — bash version with retry
 
-**Issue:** CF Worker returning 502 Bad Gateway on `/import` endpoint. First track succeeded, subsequent imports failing.
+**Issue:** CF Worker `/import` endpoint 502 Bad Gateway after first import
 
 **Tracks to import:**
 - Labios Rotos (MTV Unplugged)
@@ -28,12 +31,32 @@ Script created: `import-zoe-unplugged.sh`
 - Infinito (MTV Unplugged)
 - Últimos Días (MTV Unplugged)
 
+## Import Tools (Ready)
+
+### Batch Import (Recommended)
+```bash
+python3 batch-import.py zoe-unplugged-tracks.txt
+```
+- Auto-retry on failures (3 attempts)
+- Progress tracking
+- Tab-separated format: `URL [TAB] title [TAB] artist [TAB] album`
+- Supports stdin: `cat urls.txt | python3 batch-import.py`
+
+### Shell Script
+```bash
+./import-zoe-unplugged.sh
+```
+
+### Single Track
+```bash
+python3 cli.py import <youtube-url> --title "Track" --artist "Artist"
+```
+
 ## Next Steps
 
-1. Check CF Worker logs for `/import` errors
-2. Verify CF Container running and accessible
-3. Retry `./import-zoe-unplugged.sh` once worker stabilized
-4. All imports run on CF infrastructure — no local bandwidth used
+1. Fix CF Worker `/import` endpoint (check logs, Container health)
+2. Run: `python3 batch-import.py zoe-unplugged-tracks.txt`
+3. All processing on CF edge — zero local bandwidth
 
 ## Architecture
 

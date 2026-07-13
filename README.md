@@ -22,6 +22,14 @@ audio play                      # Interactive picker
 audio import <youtube-url>      # Import from YouTube
 audio status                    # Worker health
 
+# Batch import (easiest way)
+python3 batch-import.py tracks.txt              # From file
+python3 batch-import.py tracks.txt --artist Zoé  # Set defaults
+cat urls.txt | python3 batch-import.py          # From stdin
+
+# Format: URL [TAB] title [TAB] artist [TAB] album
+# See tracks-example.txt for format details
+
 # macOS app
 open AudioEdge.app              # Menu bar player
 ```

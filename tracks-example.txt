@@ -1,0 +1,10 @@
+# Batch import format: URL [TAB] title [TAB] artist [TAB] album
+# Lines starting with # are ignored
+# Use --artist/--album flags to set defaults
+
+https://www.youtube.com/watch?v=HJqlA_HTEU8	Soñé (MTV Unplugged)	Zoé	MTV Unplugged Música de Fondo
+https://www.youtube.com/watch?v=7h2ryr_uUEs	Labios Rotos (MTV Unplugged)	Zoé	MTV Unplugged Música de Fondo
+
+# Or just URLs (metadata auto-detected):
+# https://www.youtube.com/watch?v=HJqlA_HTEU8
+# https://www.youtube.com/watch?v=7h2ryr_uUEs
