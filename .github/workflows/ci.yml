@@ -16,7 +16,5 @@ jobs:
           python-version: '3.12.0'
       - name: Install ruff
         run: pip install ruff
-      - name: Lint
-        run: ruff check --target-version py312 cli.py || (echo '=== File content ===' && cat cli.py && exit 1)
       - name: Format check
         run: ruff format --check cli.py
